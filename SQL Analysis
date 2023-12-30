@@ -1,0 +1,100 @@
+Select *
+From Covid_portfolio_project..CovidDeaths
+where location = 'Canada'
+order by 3,4
+
+--Select *
+--From Covid_portfolio_project..CovidVaccinations
+--order by 3,4
+
+Select Location, date, total_cases, total_deaths, population
+From Covid_portfolio_project..CovidDeaths
+order by 1,2
+
+--Total cases vs deaths
+--Chances of dying if you are infected by Covid-19
+Select Location, date, total_cases, total_deaths, (CONVERT(float, total_deaths) / NULLIF(CONVERT(float, total_cases), 0))*100 as DeathPercentage
+From Covid_portfolio_project..CovidDeaths
+Where Location like '%India%'
+order by 1,2
+
+--Looking at total cases vs population
+--WHat percetage of population got Covid
+Select Location, date, total_cases, total_deaths, (CONVERT(float, total_cases) / NULLIF(CONVERT(float, population), 0))*100 as Percentinfected
+From Covid_portfolio_project..CovidDeaths
+Where Location like '%India%'
+order by 1,2
+
+--Looking at countries with highest infection rates compared to population
+Select Location, Population, Max(total_cases) as HighestInfectionCount, (max(CONVERT(float, total_cases)) / NULLIF(CONVERT(float, population), 0))*100 as Percentinfected
+From Covid_portfolio_project..CovidDeaths
+--Where Location like '%India%'
+group by Location, Population
+order by Percentinfected
+
+ -- Showing countries with highest death count per population
+Select Location, max(cast(total_deaths as int)) as Totaldeathcount
+From Covid_portfolio_project..CovidDeaths
+--Where Location like '%India%'
+Where continent is not null 
+group by Location
+order by Totaldeathcount desc
+
+-- Breaking things down by continent
+Select continent, max(cast(total_deaths as int)) as Totaldeathcount
+From Covid_portfolio_project..CovidDeaths
+--Where Location like '%India%'
+Where continent is not null 
+group by continent
+order by Totaldeathcount desc
+
+
+-- Showing continents with highest death count
+Select continent, max(cast(total_deaths as int)) as Totaldeathcount
+From Covid_portfolio_project..CovidDeaths
+--Where Location like '%India%'
+Where continent is not null 
+group by continent
+order by Totaldeathcount desc 
+
+-- GLOBAL numbers
+
+Select sum(cast(new_cases as integer)) as total_cases,sum(cast (new_deaths as integer)) 
+as total_deaths,sum(cast (new_deaths as float))/nullif(sum(cast(new_cases as float)),0) as deathpercentage
+From Covid_portfolio_project..CovidDeaths
+--Where Location like '%India%'
+where continent is not null
+--Group by date
+order by 1,2
+
+
+-- Looking at Total Population vs Vaccination
+
+
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(convert(bigint,vac.new_vaccinations)) OVER (Partition by dea.location order by dea.location, dea.date)  as Rolling_new_vacs_by_location
+--, (Rolling_new_vacs_by_location/dea.population) * 100
+From Covid_portfolio_project..CovidVaccinations vac
+Join Covid_portfolio_project..CovidDeaths dea
+	On dea.location = vac.location
+	and dea.date = vac.date		
+where dea.continent is not null
+order by 1,2,3
+
+--Using CTE
+With PopvsVac(continent, location, date, population,new_vaccinations,Rolling_people_vaccinated)
+as
+(
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(convert(bigint,vac.new_vaccinations)) OVER (Partition by dea.location order by dea.location, dea.date)  as Rolling_people_vaccinated
+--, (Rolling_new_vacs_by_location/dea.population) * 100
+From Covid_portfolio_project..CovidVaccinations vac
+Join Covid_portfolio_project..CovidDeaths dea
+	On dea.location = vac.location
+	and dea.date = vac.date
+where dea.continent is not null
+--order by 1,2,3
+)
+Select *, (Rolling_people_vaccinated/population)*100 as Percent_people_vaccinated
+From PopvsVac
+
